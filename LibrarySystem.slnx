@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/jmeter/" />
+  <Folder Name="/tests/">
+    <Project Path="LibrarySystem.ArchitectureTests/LibrarySystem.ArchitectureTests.csproj" />
+    <Project Path="LibrarySystem.IntegrationTests/LibrarySystem.IntegrationTests.csproj" />
+    <Project Path="LibrarySystem.LoadTests/LibrarySystem.LoadTests.csproj" />
+    <Project Path="LibrarySystem.UnitTests/LibrarySystem.UnitTests.csproj" />
+  </Folder>
+  <Project Path="LibrarySystem.API/LibrarySystem.API.csproj" />
+  <Project Path="LibrarySystem.Data/LibrarySystem.Data.csproj" />
+  <Project Path="LibrarySystem.Services/LibrarySystem.Services.csproj" />
+</Solution>
