@@ -1,9 +1,7 @@
 ﻿namespace LibrarySystem.Data.Models;
 
-public class Book
+public class Book : BaseEntity
 {
-    public int Id { get; set; }
-
     public string Title { get; set; } = default!;
 
     public string Author { get; set; } = default!;
@@ -13,4 +11,6 @@ public class Book
     public int TotalCopies { get; set; }
 
     public int AvailableCopies { get; set; }
+
+    public ICollection<Borrow> Borrows { get; set; } = [];
 }

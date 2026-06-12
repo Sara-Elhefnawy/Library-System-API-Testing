@@ -1,9 +1,7 @@
 ﻿namespace LibrarySystem.Data.Models;
 
-public class Loan
+public class Borrow : BaseEntity
 {
-    public int Id { get; set; }
-
     public int BookId { get; set; }
     public Book Book { get; set; } = default!;
 
@@ -14,7 +12,7 @@ public class Loan
 
     public DateTime DueDate { get; set; }
 
-    public DateTime? returnedAt { get; set; }
+    public DateTime? ReturnedAt { get; set; }
 
     public decimal FineAmount { get; set; }
 }

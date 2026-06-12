@@ -1,10 +1,24 @@
+using LibrarySystem.API.EndPoint;
+using LibrarySystem.Data.Context;
+using LibrarySystem.Data.Repositories;
+using LibrarySystem.Services.Services;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<LibraryAppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add services to the container.
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+builder.Services.AddScoped<IBorrowService, BorrowService>();
+builder.Services.AddScoped<IBorrowRepository, BorrowRepository>();
+builder.Services.AddScoped<IMemberRepository, MemberRepository>();
+builder.Services.AddScoped<IBookRepository, BookRepository>();
 
 var app = builder.Build();
 
@@ -19,5 +33,11 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+
+app.MapBookItemEndPoint();
+app.MapBorrowItemEndPoint();
+app.MapMemberItemEndPoint();
+
 
 app.Run();
