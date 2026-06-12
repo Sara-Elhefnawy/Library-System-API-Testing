@@ -11,7 +11,6 @@ public class BookRepositoryQueryTests : IDisposable
 {
     private LibraryAppDbContext _dbContext;
     private BookRepository _bookRepository;
-    private BorrowRepository _borrowRepository;
 
     public void Dispose()
     {

@@ -13,5 +13,15 @@ public class BorrowConfiguration : IEntityTypeConfiguration<Borrow>
 
         builder.Property(b => b.FineAmount)
             .HasPrecision(18,2);
+
+        builder.HasOne(b => b.Member)
+            .WithMany(m => m.Borrows)
+            .HasForeignKey(b => b.MemberId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(b => b.Book)
+            .WithMany(b => b.Borrows)
+            .HasForeignKey(b => b.BookId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
