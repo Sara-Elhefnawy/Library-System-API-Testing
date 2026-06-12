@@ -1,6 +1,7 @@
 ﻿using LibrarySystem.Data.Context;
 using LibrarySystem.Data.Models;
 using LibrarySystem.Data.Repositories;
+using LibrarySystem.Services.Exceptions;
 
 namespace LibrarySystem.Services.Services;
 
@@ -15,7 +16,7 @@ public class BorrowService(
     // A book cannot be borrowed if AvailableCopies == 0
     // A member cannot borrow if they have an OutstandingFine > 0
     // Borrowing decrements AvailableCopies by 1 atomically
-    public async Task<Borrow?> BorrowBookAsync(int bookId, int memberId)
+    public async Task<Borrow> BorrowBookAsync(int bookId, int memberId)
     {
         var book = await bookRepository.GetByIdAsync(bookId);
         if (book is null)
@@ -26,20 +27,17 @@ public class BorrowService(
             throw new Exception($"Member with ID {memberId} not found");
 
         if (member.MembershipExpiryDate < DateTime.UtcNow)
-            throw new Exception("Member cannot borrow because membership has expired");
+            throw new MembershipExpiredException();
 
         var activeBorrows = await borrowRepository.GetActiveBorrowsByMemberIdAsync(memberId);
-        if(activeBorrows is null)
-            throw new Exception($"Member doesn't have active borrows");
-
-        if (activeBorrows?.Count >= 3)
-            throw new Exception("Member cannot borrow more than 3 books at the same time");
+        if(activeBorrows != null && activeBorrows.Count >= 3)
+            throw new LoanLimitExceededException();
 
         if (book.AvailableCopies == 0)
-            throw new Exception("throw new Exception($\"Member cannot borrow because they have an outstanding fine of £{member.OutstandingFine}\");\r\n Book cannot be borrowed because no copies are available");
+            throw new BookNotAvailableException();
 
-        if (member.OutstandingFine > 0)
-            throw new Exception($"Member cannot borrow because they have an outstanding fine of £{member.OutstandingFine}");
+        if (member.OutstandingFine > 0) 
+            throw new OutstandingFineException(member.OutstandingFine);
 
         var borrow = new Borrow
         {
@@ -83,7 +81,8 @@ public class BorrowService(
 
         if (borrow.ReturnedAt > borrow.DueDate)
         {
-            borrow.FineAmount = (decimal)((borrow.ReturnedAt.Value - borrow.DueDate).TotalDays * 0.50);
+            var daysOverdue = (borrow.ReturnedAt.Value - borrow.DueDate).Days;
+            borrow.FineAmount = daysOverdue * 0.50m;
             member.OutstandingFine += borrow.FineAmount;
         }
 
@@ -95,5 +94,14 @@ public class BorrowService(
         await dbContext.SaveChangesAsync();
 
         return borrow;
+    }
+
+    public decimal CalculateFine(Borrow borrow)
+    {
+        if (borrow.ReturnedAt == null || borrow.ReturnedAt <= borrow.DueDate)
+            return 0;
+
+        var daysOverdue = (borrow.ReturnedAt.Value - borrow.DueDate).Days;
+        return daysOverdue * 0.50m;
     }
 }

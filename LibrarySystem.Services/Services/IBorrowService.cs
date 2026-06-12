@@ -6,5 +6,7 @@ public interface IBorrowService
 {
     Task<Borrow> BorrowBookAsync(int bookId, int memberId);
 
-    Task<Borrow> ReturnBookAsync(int borrowId);
+    Task<Borrow?> ReturnBookAsync(int borrowId);
+
+    decimal CalculateFine(Borrow borrow);
 }
