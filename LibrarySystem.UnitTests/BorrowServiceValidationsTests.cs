@@ -10,7 +10,7 @@ using Xunit;
 
 namespace LibrarySystem.UnitTests;
 
-public class BorrowServiceTests : IDisposable
+public class BorrowServiceValidationsTests : IDisposable
 {
     private readonly Mock<IBookRepository> _bookRepositoryMock;
     private readonly Mock<IMemberRepository> _memberRepositoryMock;
@@ -18,7 +18,7 @@ public class BorrowServiceTests : IDisposable
     private readonly LibraryAppDbContext _dbContext;
     private readonly BorrowService _borrowService;
 
-    public BorrowServiceTests()
+    public BorrowServiceValidationsTests()
     {
         var options = new DbContextOptionsBuilder<LibraryAppDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -239,5 +239,4 @@ public class BorrowServiceTests : IDisposable
 
         book.AvailableCopies.ShouldBe(4);
     }
-
 }

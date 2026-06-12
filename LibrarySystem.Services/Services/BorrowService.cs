@@ -66,15 +66,15 @@ public class BorrowService(
         if (borrow is null)
             return null;
 
+        if (borrow.ReturnedAt != null)
+            throw new AlreadyReturnedException();
+
         var book = await bookRepository.GetByIdAsync(borrow.BookId);
         if(book is null) 
             return null;
 
         var member = await memberRepository.GetByIdAsync(borrow.MemberId);
         if (member is null)
-            return null;
-
-        if (borrow.ReturnedAt != null)
             return null;
 
         borrow.ReturnedAt = DateTime.UtcNow;
@@ -85,6 +85,8 @@ public class BorrowService(
             borrow.FineAmount = daysOverdue * 0.50m;
             member.OutstandingFine += borrow.FineAmount;
         }
+
+        memberRepository.Update(member);
 
         book.AvailableCopies++;
         bookRepository.Update(book);

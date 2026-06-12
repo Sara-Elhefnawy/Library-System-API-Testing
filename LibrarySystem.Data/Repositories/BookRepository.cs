@@ -9,6 +9,6 @@ public class BookRepository(LibraryAppDbContext dbContext) : Repository<Book>(db
     public async Task<IEnumerable<Book>> GetAllAvailableBooksAsync()
         => await dbContext.Books.Where(b => b.AvailableCopies > 0).ToListAsync();
 
-    public async Task<bool> ISBNExistsAsync(string iSBN)
-        => await dbContext.Books.AnyAsync(e => e.ISBN == iSBN);
+    public async Task<Book?> GetByISBNAsync(string iSBN)
+        => await dbContext.Books.FirstOrDefaultAsync(b => b.ISBN == iSBN);
 }

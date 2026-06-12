@@ -6,5 +6,5 @@ public interface IBookRepository : IRepository<Book>
 {
     Task<IEnumerable<Book>> GetAllAvailableBooksAsync();
 
-    Task<bool> ISBNExistsAsync(string iSBN);
+    Task<Book?> GetByISBNAsync(string iSBN);
 }
