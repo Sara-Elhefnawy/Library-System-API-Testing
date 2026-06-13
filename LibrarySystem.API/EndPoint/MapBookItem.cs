@@ -44,8 +44,9 @@ public static class MapBookItem
             if (string.IsNullOrEmpty(book.ISBN) || book.ISBN.Length != 13)
                 return Results.BadRequest("ISBN must be exactly 13 digits");
 
-            if (await repo.ISBNExistsAsync(book.ISBN))
+            if (await repo.GetByISBNAsync(book.ISBN) is not null)
                 return Results.BadRequest($"A book with ISBN {book.ISBN} already exists.");
+            
             await repo.AddAsync(book);
             await repo.CommitChanges();
             return Results.Created($"/api/books/{book.Id}", book);
