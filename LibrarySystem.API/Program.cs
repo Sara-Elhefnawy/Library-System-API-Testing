@@ -1,6 +1,7 @@
 using LibrarySystem.API.EndPoint;
 using LibrarySystem.Data.Context;
 using LibrarySystem.Data.Repositories;
+using LibrarySystem.Data.Repositories.Abstractions;
 using LibrarySystem.Services.Services;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,5 +1,5 @@
 ﻿using LibrarySystem.Data.Models;
-using LibrarySystem.Data.Repositories;
+using LibrarySystem.Data.Repositories.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LibrarySystem.API.EndPoint;

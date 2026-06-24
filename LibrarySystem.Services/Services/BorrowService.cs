@@ -1,6 +1,6 @@
 ﻿using LibrarySystem.Data.Context;
 using LibrarySystem.Data.Models;
-using LibrarySystem.Data.Repositories;
+using LibrarySystem.Data.Repositories.Abstractions;
 using LibrarySystem.Services.Exceptions;
 
 namespace LibrarySystem.Services.Services;

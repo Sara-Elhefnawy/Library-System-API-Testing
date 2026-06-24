@@ -1,4 +1,4 @@
-﻿using LibrarySystem.Data.Repositories;
+﻿using LibrarySystem.Data.Repositories.Abstractions;
 using LibrarySystem.Services.Services;
 
 namespace LibrarySystem.API.EndPoint;

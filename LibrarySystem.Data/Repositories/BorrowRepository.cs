@@ -1,5 +1,6 @@
 ﻿using LibrarySystem.Data.Context;
 using LibrarySystem.Data.Models;
+using LibrarySystem.Data.Repositories.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
 namespace LibrarySystem.Data.Repositories;
