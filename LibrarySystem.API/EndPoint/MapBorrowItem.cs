@@ -1,4 +1,5 @@
 ﻿using LibrarySystem.Data.Repositories.Abstractions;
+using LibrarySystem.Services.Exceptions;
 using LibrarySystem.Services.Services;
 
 namespace LibrarySystem.API.EndPoint;
@@ -32,17 +33,28 @@ public static class MapBorrowItem
         // Return updated loan with fine amount
         app.MapPut("/api/borrow/{id}/return", async (int id, IBorrowService borrowService) =>
         {
-            var borrow = await borrowService.ReturnBookAsync(id);
-
-            if (borrow is null)
-                return Results.NotFound($"Borrow record {id} not found or already returned");
-
-            return Results.Ok(new
+            try
             {
-                borrow.Id,
-                borrow.FineAmount,
-                Message = borrow.FineAmount > 0 ? $"Late return! Fine: £{borrow.FineAmount}" : "Book returned on time"
-            });
+                var borrow = await borrowService.ReturnBookAsync(id);
+
+                if (borrow is null)
+                    return Results.NotFound($"Borrow record {id} not found");
+
+                return Results.Ok(new
+                {
+                    borrow.Id,
+                    borrow.FineAmount,
+                    Message = borrow.FineAmount > 0 ? $"Late return! Fine: £{borrow.FineAmount}" : "Book returned on time"
+                });
+            }
+            // ReturnBookAsync throws (rather than returning null)
+            //      when the loan was already returned.
+            // Catch it here so the client gets a clean 422
+            //      instead of an unhandled-exception 500.
+            catch (AlreadyReturnedException ex)
+            {
+                return Results.UnprocessableEntity(ex.Message);
+            }
         });
 
         // Return all loans for a member, ordered by BorrowedAt descending.

@@ -2,144 +2,124 @@
 using LibrarySystem.Data.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.MsSql;
 using Xunit;
 
 namespace LibrarySystem.IntegrationTests;
 
+// Shared test infrastructure: every integration test class plugs into this
+// one factory via IClassFixture<LibraryWebAppFactory>, so the container
+// only spins up ONCE per test class, not once per test method.
 public class LibraryWebAppFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private MsSqlContainer _dbContainer = null!;
-    private string _databaseName = $"LibrarySystemTest_{Guid.NewGuid():N}";
+    // Spins up a real SQL Server instance inside a Docker container.
+    // This gives production-identical behavior (real T-SQL, real constraints)
+    //      instead of an in-memory fake database.
+    private readonly MsSqlContainer _container = new MsSqlBuilder()
+        .WithPassword("Strong_password_123!")
+        .Build();
 
-    // In InitializeAsync():
-    //      use MsSqlBuilder to build and start an MsSqlContainer.
-    //      Store the container reference
+    // Known IDs that every test method can rely on
+    //      without re-querying the database to "find" a book/member first.
+    public int SeededAvailableBookId { get; private set; }
+    public int SeededUnavailableBookId { get; private set; }
+    public int SeededMemberId { get; private set; }
+
+    // xunit calls this once before any test in the class runs.
     public async Task InitializeAsync()
     {
-        _dbContainer = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithPassword("Your_password123!")
-            .Build();
-
-        await _dbContainer.StartAsync();
+        await _container.StartAsync();
     }
 
-    // Override ConfigureWebHost():
-    //      remove the existing LibraryDbContext registration
-    //      and re-register it using the Testcontainer's connection string
-    //      from container.GetConnectionString()
-    // In ConfigureWebHost():
-    //      after registering the new DbContext, resolve it from app.ApplicationServices,
-    //      call database.EnsureDeleted() then database.Migrate()
-    //      to start each test run with a clean, migrated database
+    // WebApplicationFactory calls this while building the test host.
+    // It swaps the app's real SQL Server connection for the Testcontainer's connection,
+    //      then prepare the schema + seed data.
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.ConfigureTestServices(services =>
+        builder.UseEnvironment("Testing");
+
+        builder.ConfigureServices(services =>
         {
-            // Remove the real database connection that your app registered in Program.cs.
-            services.RemoveAll(typeof(DbContextOptions<LibraryAppDbContext>));
+            // Remove the DbContext registration that Program.cs set up
+            //      so we can replace it with the Testcontainer's.
+            var descriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(DbContextOptions<LibraryAppDbContext>));
 
-            // Create a dedicated database for testing
-            var connectionString = _dbContainer.GetConnectionString();
-            var testConnectionString = connectionString.Replace("Database=master", $"Database={_databaseName}");
+            if (descriptor is not null)
+                services.Remove(descriptor);
 
-            // Add a new database connection pointing to the Docker container.
-            // GetConnectionString() returns something like:
-            // "Server=localhost,12345;Database=master;User Id=sa;Password=Your_password123!;"
-            // The port number is dynamic — Testcontainers assigns it automatically.
             services.AddDbContext<LibraryAppDbContext>(options =>
             {
-                options.UseSqlServer(testConnectionString);
+                // Testcontainers' connection string targets the "master" system database by default.
+                // We can't EnsureDeleted()/Migrate() against master
+                //      so we explicitly point at a named database instead
+                //          SQL Server creates it on first use.
+                var connectionString = new SqlConnectionStringBuilder(_container.GetConnectionString())
+                {
+                    InitialCatalog = "LibraryTestDb"
+                }.ConnectionString;
+
+                options.UseSqlServer(connectionString);
             });
 
-            // Build a temporary service provider to run database migration & seeding
+            // Build a temporary service provider just to run migrations
+            //      and seed data before the real host starts handling requests.
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<LibraryAppDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<LibraryAppDbContext>();
 
-            // Ensure the schema is ready
-            dbContext.Database.EnsureCreated();
+            // Start every test run from a clean, freshly migrated schema.
+            db.Database.EnsureDeleted();
+            db.Database.Migrate();
 
-            SeedData(dbContext);
+            SeedData(db);
         });
     }
 
-    // Create a SeedData() method that inserts a known set of books and members
-    //      using the DbContext directly.
-    //      Call it at the end of InitializeAsync().
-    public void SeedData(LibraryAppDbContext dbContext)
+    private void SeedData(LibraryAppDbContext db)
     {
-        if (!dbContext.Books.Any())
+        var availableBook = new Book
         {
-            var book1 = new Book
-            {
-                Author = "Author1",
-                ISBN = "1234567890123",
-                Title = "Title1",
-                TotalCopies = 40,
-                AvailableCopies = 5,
-            };
-            var book2 = new Book
-            {
-                Author = "Author2",
-                ISBN = "1234567890124",
-                Title = "Title2",
-                TotalCopies = 40,
-                AvailableCopies = 3,
-            };
-            var book3 = new Book
-            {
-                Author = "Author3",
-                ISBN = "1234567890125",
-                Title = "Title3",
-                TotalCopies = 40,
-                AvailableCopies = 0,
-            };
+            Title = "Clean Architecture",
+            Author = "Robert C. Martin",
+            ISBN = "9780134494166",
+            TotalCopies = 3,
+            AvailableCopies = 3
+        };
 
-            dbContext.Books.AddRange(book1, book2, book3);
-        }
-
-        if (!dbContext.Members.Any())
+        var unavailableBook = new Book
         {
-            var member1 = new Member
-            {
-                FullName = "Yara",
-                MembershipExpiryDate = DateTime.UtcNow.AddMonths(14),
-                Email = "yara@gmail.com",
-                OutstandingFine = 0
-            };
-            var member2 = new Member
-            {
-                FullName = "Yasser",
-                MembershipExpiryDate = DateTime.UtcNow.AddMonths(14),
-                Email = "yasser@gmail.com",
-                OutstandingFine = 0
-            };
-            var member3 = new Member
-            {
-                FullName = "Nada",
-                MembershipExpiryDate = DateTime.UtcNow.AddMonths(14),
-                Email = "nada@gmail.com",
-                OutstandingFine = 0
-            };
+            Title = "Domain-Driven Design",
+            Author = "Eric Evans",
+            ISBN = "9780321125217",
+            TotalCopies = 1,
+            AvailableCopies = 0 // to confirm the "book not available" business rule
+        };
 
-            dbContext.Members.AddRange(member1, member2, member3);
-        }
+        var member = new Member
+        {
+            FullName = "Sara Test",
+            Email = "sara.test@example.com",
+            MembershipExpiryDate = DateTime.UtcNow.AddYears(1),
+            OutstandingFine = 0
+        };
 
-        dbContext.SaveChanges();
+        db.Books.AddRange(availableBook, unavailableBook);
+        db.Members.Add(member);
+        db.SaveChanges();
+
+        SeededAvailableBookId = availableBook.Id;
+        SeededUnavailableBookId = unavailableBook.Id;
+        SeededMemberId = member.Id;
     }
 
-    async Task IAsyncLifetime.DisposeAsync()
+    // xunit calls this once after all tests in the class have finished.
+    public new async Task DisposeAsync()
     {
-        if (_dbContainer != null)
-        {
-            await _dbContainer.StopAsync();
-            await _dbContainer.DisposeAsync();
-        }
+        await _container.StopAsync();
+        await _container.DisposeAsync();
     }
 }
